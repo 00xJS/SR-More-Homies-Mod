@@ -1,8 +1,8 @@
 # More Homies
 
 A mod for [Saints Reborn](https://github.com/whompay/SaintsReborn) (Saints
-Row, Xbox 360, recompiled for PC) that lets you recruit up to **30 homies**
-instead of 1 to 3.
+Row, Xbox 360, recompiled for PC) that lets you recruit up to **10 homies**
+instead of 1 to 3, with an experimental option for up to 30.
 
 - The game's own progression is kept: `homies_start` as soon as recruiting
   unlocks, `homies_per_award` more at each city-ownership award (25% and
@@ -12,10 +12,12 @@ instead of 1 to 3.
 - Gang wars bring more gang members and cars, sooner, and the gang hang-out
   spots on the street are always populated.
 
-The game's party list holds 10 followers. Past that, the extra homies are an
-"entourage": they follow you and fight for you, but they are not on the HUD,
-do not take seats in your car, cannot be revived, and are never dropped for
-distance (dismiss them with the rest by holding recruit). Private play only, like any gameplay mod (story co-op and private parties work;
+The game's party list holds 10 followers, and those ten behave exactly like
+the game's own. Setting `homies_cap` above 10 adds an experimental
+"entourage": extra homies that follow and fight most of the time, but show
+as plain dots on the map instead of arrows, have no HUD head, do not take
+seats in your car, cannot be revived, and are cleared when a mission starts.
+Hold recruit to dismiss them with the rest. Private play only, like any gameplay mod (story co-op and private parties work;
 public matches do not).
 
 ## Install
@@ -33,7 +35,7 @@ after changing them.
 |---|---|---|
 | `homies_start` | 10 | Party size as soon as recruiting unlocks (the game gives 1) |
 | `homies_per_award` | 1 | Added at each city-ownership award |
-| `homies_cap` | 10 | Most the party may hold, up to 30 (10 in the game's list, the rest an entourage, experimental) |
+| `homies_cap` | 10 | Most the party may hold. Above 10 (up to 30) adds the experimental entourage |
 | `mission_homies` | 10 | Party size when a mission gives you a full party |
 | `hud_heads` | 6 | Follower heads drawn on the HUD, 3 to 6 |
 | `second_award_at`, `third_award_at` | 0.25, 0.5 | Share of hoods owned for each award |
