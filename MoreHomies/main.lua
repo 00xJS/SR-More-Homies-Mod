@@ -200,18 +200,53 @@ if range_mult > 0 and range_mult ~= 1 then
   wml.log(string.format("follower range: %.0f m -> %.0f m", math.sqrt(a), math.sqrt(a) * range_mult))
 end
 
+-- ------------------------------------------------------------ ambient gangs (research)
+--
+-- The ambient population replaces people as they despawn: each removed
+-- person queues a request for their category (law 2/3, friendly gang 4/5,
+-- Los Carnales 6/7, Vice Kings 8/9, Rollerz 10/11; the odd one is the
+-- "flagged" variant), and the queue processor (0x82417218) spawns them
+-- subject to a per-category cap read from 0x827AD004 + 4 * category,
+-- against live counts at 0x82962D90 + 12 * category. Not yet confirmed in
+-- game: with debug on, both rows are logged every few seconds so the
+-- model can be checked. ambient_gang_cap, when above 0, is written into
+-- the gang categories' caps; leave it at 0 until the log confirms them.
+local CAT_CAPS, CAT_COUNTS, CATEGORIES = 0x827AD004, 0x82962D90, 12
+local gang_cap = math.floor(wml.setting("ambient_gang_cap", 0))
+local caps_written = false
+local function apply_gang_caps()
+  if gang_cap <= 0 or caps_written then return end
+  caps_written = true
+  for cat = 4, 11 do wml.write_u32(CAT_CAPS + 4 * cat, gang_cap) end
+  wml.log(string.format("ambient gangs: caps for categories 4-11 set to %d", gang_cap))
+end
+local last_caps_log = os.time()
+local function log_categories()
+  local now = os.time()
+  if now - last_caps_log < 5 then return end
+  last_caps_log = now
+  local caps, counts = {}, {}
+  for cat = 0, CATEGORIES - 1 do
+    caps[#caps + 1] = tostring(to_int(wml.read_u32(CAT_CAPS + 4 * cat)))
+    counts[#counts + 1] = tostring(to_int(wml.read_u32(CAT_COUNTS + 12 * cat)))
+  end
+  wml.log("ambient caps " .. table.concat(caps, ",") .. " counts " .. table.concat(counts, ","))
+end
+
 -- ------------------------------------------------------------ logging
 
 local last_count, last_second = nil, os.time()
 wml.on_frame(function()
-  if not debug then return end
+  if not debug and gang_cap <= 0 then return end
   local now = os.time()
   if now == last_second then return end
   last_second = now
   local p = wml.read_u32(PLAYER)
   if p == 0 or wml.read_u32(p + 72) ~= 1 then return end
+  apply_gang_caps()
+  log_categories()
   local count = to_int(wml.read_u32(p + COUNT))
-  if count ~= last_count then
+  if debug and count ~= last_count then
     last_count = count
     wml.log(string.format("party: %d followers (recruitable %d, mission flag %s, extra recruits %d, refusals %d)", count,
       wml.read_u8(RECRUITABLE), ((wml.read_u8(p + MISSION_FLAG) & 0x80) ~= 0) and "on" or "off", recruits, refusals))
