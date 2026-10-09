@@ -7,7 +7,7 @@ instead of 1 to 3, with an experimental option for up to 30.
 - The game's own progression is kept: `homies_start` as soon as recruiting
   unlocks, `homies_per_award` more at each city-ownership award (25% and
   50% of the hoods), `mission_homies` when a mission hands you a full party.
-- The HUD shows up to six follower heads in a row.
+- The HUD shows all ten follower heads in a row.
 - Optional: let followers fall further behind before the game drops them (off by default).
 - Gang wars bring more gang members and cars, sooner, and the gang hang-out
   spots on the street are always populated.
@@ -37,7 +37,7 @@ after changing them.
 | `homies_per_award` | 1 | Added at each city-ownership award |
 | `homies_cap` | 10 | Most the party may hold. Above 10 (up to 30) adds the experimental entourage |
 | `mission_homies` | 10 | Party size when a mission gives you a full party |
-| `hud_heads` | 6 | Follower heads drawn on the HUD, 3 to 6 |
+| `hud_heads` | 10 | Follower heads drawn on the HUD, 3 to 10 |
 | `second_award_at`, `third_award_at` | 0.25, 0.5 | Share of hoods owned for each award |
 | `follower_range_multiplier` | 1.0 | How far followers may fall behind (1.0 = 40 m; higher leaves distant followers idle) |
 | `gang_war_multiplier` | 2.0 | Gang members and cars per notoriety level, and how soon |

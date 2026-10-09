@@ -22,12 +22,12 @@
 --     head registration (0x822D0188 / 0x822D1418).
 --  3. 0x822DEA08 (player, f1 alpha): the HUD draws min(count, 3) heads from
 --     the first three list entries into three fixed screen slots, then an
---     "empty slot" marker (slot index 4 + heads, up to 6) while the party
---     is under the maximum. Hooked: after the game's own pass, a second
---     pass is run with list entries 4-6 moved to the front, the count cut
---     by 3, the three head positions moved left by the span of the first
---     three, and the maximum reported as 0 so no marker is drawn.
---     Everything is put back before returning.
+--     "empty slot" marker while the party is under the maximum. Hooked:
+--     after the game's own pass, one more pass per further three heads is
+--     run with those list entries moved to the front, the count cut to
+--     what the pass shows, the three head positions moved on by the span
+--     of the first three, and the maximum reported as 0 so no marker is
+--     drawn. Everything is put back before returning.
 
 local PLAYER      = 0x8309ABEC  -- pointer to the player object (0 = no game loaded)
 local PARTY_MAX   = 0x824836E8  -- (player) -> max followers
@@ -57,7 +57,7 @@ local LIST_MAX   = 10                       -- slots in the game's party list
 local list_cap   = math.min(cap, LIST_MAX)  -- what the list may hold
 local extra_cap  = cap - list_cap           -- entourage: followers without a list slot
 local mission    = math.floor(wml.setting("mission_homies", 10))
-local hud_heads  = math.max(3, math.min(6, math.floor(wml.setting("hud_heads", 6))))
+local hud_heads  = math.max(3, math.min(10, math.floor(wml.setting("hud_heads", 10))))
 local range_mult = wml.setting("follower_range_multiplier", 1.0)
 local debug      = wml.setting("debug", false)
 
@@ -246,35 +246,37 @@ wml.hook(HUD_HEADS, function(ctx)
   local count = to_int(wml.read_u32(p + COUNT))
   if count <= 3 then return end
   dump_hud()
-  local extra = math.min(count - 3, hud_heads - 3)
-  -- Entries 4-6 to the front, count cut, slot layouts 4-6 over 1-3, our fade state in.
-  swap_bytes(p + LIST, p + LIST + 3 * ENTRY, 3 * ENTRY)
-  wml.write_u32(p + COUNT, extra)
-  local saved = {}
+  local shown = math.min(count, hud_heads)
   local x0, x1, x2 = to_int(wml.read_u32(SLOT_BASE)), to_int(wml.read_u32(SLOT_BASE + 16)), to_int(wml.read_u32(SLOT_BASE + 32))
-  local shift = (x2 - x0) + (x1 - x0)         -- one more step past the third head
-  for j = 0, 2 do
-    local a = SLOT_BASE + 16 * j
-    local x = to_int(wml.read_u32(a))
-    saved[#saved + 1] = { a, wml.read_u32(a) }
-    wml.write_u32(a, (x + shift) & 0xFFFFFFFF)
-  end
+  local span = (x2 - x0) + (x1 - x0)                   -- three head positions further on
+  local saved_x = { wml.read_u32(SLOT_BASE), wml.read_u32(SLOT_BASE + 16), wml.read_u32(SLOT_BASE + 32) }
   local fade_saved = {}
-  for i = 0, FADE_BYTES - 4, 4 do
-    fade_saved[#fade_saved + 1] = wml.read_u32(FADE_BASE + i)
-    wml.write_u32(FADE_BASE + i, fade_extra[i] or 0)
+  for i = 0, FADE_BYTES - 4, 4 do fade_saved[#fade_saved + 1] = wml.read_u32(FADE_BASE + i) end
+  -- One extra pass per three heads: entries 3k..3k+2 moved to the front,
+  -- the count cut to what that pass shows, the three x offsets shifted k
+  -- spans on, and that pass's own fade state in.
+  for pass = 1, math.ceil((shown - 3) / 3) do
+    local first = 3 * pass
+    local extra = math.min(shown - first, 3)
+    if extra <= 0 then break end
+    swap_bytes(p + LIST, p + LIST + first * ENTRY, 3 * ENTRY)
+    wml.write_u32(p + COUNT, extra)
+    for j = 0, 2 do
+      local x = to_int(saved_x[j + 1])
+      wml.write_u32(SLOT_BASE + 16 * j, (x + span * pass) & 0xFFFFFFFF)
+    end
+    fade_extra[pass] = fade_extra[pass] or {}
+    for i = 0, FADE_BYTES - 4, 4 do wml.write_u32(FADE_BASE + i, fade_extra[pass][i] or 0) end
+    hud_pass = true
+    ctx:set_r(3, p); ctx:set_f(1, alpha)
+    ctx:call_original()
+    hud_pass = false
+    for i = 0, FADE_BYTES - 4, 4 do fade_extra[pass][i] = wml.read_u32(FADE_BASE + i) end
+    wml.write_u32(p + COUNT, count)
+    swap_bytes(p + LIST, p + LIST + first * ENTRY, 3 * ENTRY)
   end
-  hud_pass = true
-  ctx:set_r(3, p); ctx:set_f(1, alpha)
-  ctx:call_original()
-  hud_pass = false
-  for i = 0, FADE_BYTES - 4, 4 do
-    fade_extra[i] = wml.read_u32(FADE_BASE + i)
-    wml.write_u32(FADE_BASE + i, fade_saved[i // 4 + 1])
-  end
-  for _, s in ipairs(saved) do wml.write_u32(s[1], s[2]) end
-  wml.write_u32(p + COUNT, count)
-  swap_bytes(p + LIST, p + LIST + 3 * ENTRY, 3 * ENTRY)
+  for i = 0, FADE_BYTES - 4, 4 do wml.write_u32(FADE_BASE + i, fade_saved[i // 4 + 1]) end
+  for j = 0, 2 do wml.write_u32(SLOT_BASE + 16 * j, saved_x[j + 1]) end
 end)
 
 -- ------------------------------------------------------------ follower range
