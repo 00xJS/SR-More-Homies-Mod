@@ -55,7 +55,7 @@ local per_award  = math.floor(wml.setting("homies_per_award", 1))
 local cap        = math.max(1, math.min(10, math.floor(wml.setting("homies_cap", 10))))
 local mission    = math.floor(wml.setting("mission_homies", 10))
 local hud_heads  = math.max(3, math.min(6, math.floor(wml.setting("hud_heads", 6))))
-local range_mult = wml.setting("follower_range_multiplier", 2.0)
+local range_mult = wml.setting("follower_range_multiplier", 1.0)
 local debug      = wml.setting("debug", false)
 
 local function to_int(v)
