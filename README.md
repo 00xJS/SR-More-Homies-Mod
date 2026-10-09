@@ -14,7 +14,8 @@ instead of 1 to 3.
 
 The game's party list holds 10 followers. Past that, the extra homies are an
 "entourage": they follow you and fight for you, but they are not on the HUD,
-do not take seats in your car and cannot be revived. Private play only, like any gameplay mod (story co-op and private parties work;
+do not take seats in your car, cannot be revived, and are never dropped for
+distance (dismiss them with the rest by holding recruit). Private play only, like any gameplay mod (story co-op and private parties work;
 public matches do not).
 
 ## Install

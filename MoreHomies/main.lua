@@ -124,11 +124,12 @@ end)
 -- without a list entry. The mod remembers them by handle, releases them on
 -- dismiss-all with the game's own dismiss routine (0x82483A60), and
 -- forgets the ones that die or despawn. They are not on the HUD, do not
--- take car seats and are not revived.
+-- take car seats, are not revived, and are never dropped for distance.
 
 local OBJECTS     = 0x830866C8  -- handle table, 16 bytes per entry
 local DISMISS_ALL = 0x82483B78  -- (player) dismisses the whole list
 local DISMISS_ONE = 0x82483A60  -- (player, npc) undoes the follower setup
+local SUPPRESS, SUPPRESS_BIT = 3696, 0x20  -- npc byte and bit set by follower_suppress_distance
 local entourage = {}            -- handles of followers without a list slot
 local recruits, refusals = 0, 0
 
@@ -184,7 +185,13 @@ wml.hook(RECRUIT_ONE, function(ctx)
     if added and to_int(call(ctx, HUD_SLOT, npc)) ~= -1 then call(ctx, HUD_ADD, npc) end
   else
     added = ghost_add(ctx, p, npc)
-    if added then entourage[#entourage + 1] = wml.read_u32(npc + 68) end
+    if added then
+      entourage[#entourage + 1] = wml.read_u32(npc + 68)
+      -- The per-follower update drops a follower who is far for 15 s and
+      -- counts far list members for its warning (so it says 0 for these).
+      -- follower_suppress_distance's bit skips that check: set it here.
+      wml.write_u8(npc + SUPPRESS, wml.read_u8(npc + SUPPRESS) | SUPPRESS_BIT)
+    end
   end
   if added then
     recruits = recruits + 1
@@ -202,7 +209,11 @@ wml.hook(DISMISS_ALL, function(ctx)
   prune_entourage(p)
   for _, h in ipairs(entourage) do
     local o = object_of(h)
-    if o then call(ctx, DISMISS_ONE, p, o); wml.write_u32(o + 4128, 0) end
+    if o then
+      call(ctx, DISMISS_ONE, p, o)
+      wml.write_u32(o + 4128, 0)
+      wml.write_u8(o + SUPPRESS, wml.read_u8(o + SUPPRESS) & ~SUPPRESS_BIT & 0xFF)
+    end
   end
   if debug then wml.log(string.format("dismissed %d entourage followers", #entourage)) end
   entourage = {}
