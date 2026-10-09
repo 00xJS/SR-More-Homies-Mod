@@ -26,6 +26,7 @@ local second = wml.setting("second_award_at", 0.25)
 local third  = wml.setting("third_award_at", 0.5)
 local war    = wml.setting("gang_war_multiplier", 2.0)
 local street = wml.setting("gang_street_chance", 1.0)
+local cluster = math.floor(wml.setting("gang_cluster_size", 5))
 local noto   = wml.setting("gang_notoriety_multiplier", 1.0)
 local GANGS  = { "los carnales", "vice lords", "rollers" }
 
@@ -93,16 +94,33 @@ local function patch_notoriety_spawn(xml)
   return xml, changed
 end
 
--- Gang hang-out spots on the street.
+-- Gang hang-out spots on the street: always populated, and the gang
+-- clusters (three members standing around on a corner) get more members
+-- by repeating their "standing" character up to gang_cluster_size.
 local function patch_special_spawns(xml)
   local changed = 0
   xml = in_table(xml, function(head)
-    return (head:gsub("(<Name>Gang [^<]*</Name>.-)(<Spawn_chance>)%s*([%d%.]+)%s*(</Spawn_chance>)", function(before, open, value, close)
+    head = head:gsub("(<Name>Gang [^<]*</Name>.-)(<Spawn_chance>)%s*([%d%.]+)%s*(</Spawn_chance>)", function(before, open, value, close)
       local v = math.max(0, math.min(1, street))
       if tonumber(value) == v then return nil end
       changed = changed + 1
       return before .. open .. fmt(v) .. close
-    end))
+    end)
+    head = head:gsub("(<Name>Gang Cluster2?</Name>.-<Char_List>)(.-)(</Char_List>)", function(before, list, after)
+      local n, stand = 0, nil
+      for c in list:gmatch("<Character>.-</Character>") do
+        n = n + 1
+        if not stand and c:find("sspawn_ganggroup_stand", 1, true) then stand = c end
+      end
+      if not stand or n >= cluster then return nil end
+      local extra = {}
+      for i = n + 1, cluster do
+        extra[#extra + 1] = (stand:gsub("<Display_name>[^<]*</Display_name>", "<Display_name>Gang standing " .. i .. "</Display_name>"))
+        changed = changed + 1
+      end
+      return before .. list .. "\t\t\t\t" .. table.concat(extra, "\n\t\t\t\t") .. "\n\t\t\t\t" .. after
+    end)
+    return head
   end)
   return xml, changed
 end
@@ -124,7 +142,7 @@ end
 local FILES = {
   { FILE, patch, string.format("awards at %s and %s", fmt(second), fmt(third)) },
   { "notoriety_spawn.xtbl", patch_notoriety_spawn, "gang waves x" .. fmt(war) },
-  { "special_spawns.xtbl", patch_special_spawns, "gang spots at " .. fmt(street) },
+  { "special_spawns.xtbl", patch_special_spawns, "gang spots at " .. fmt(street) .. ", clusters of " .. cluster },
   { "notoriety.xtbl", patch_notoriety, "gang notoriety x" .. fmt(noto) },
 }
 for _, pack in ipairs(PACKS) do

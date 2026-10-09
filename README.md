@@ -38,6 +38,7 @@ after changing them.
 | `follower_range_multiplier` | 1.0 | How far followers may fall behind (1.0 = 40 m; higher leaves distant followers idle) |
 | `gang_war_multiplier` | 2.0 | Gang members and cars per notoriety level, and how soon |
 | `gang_street_chance` | 1.0 | Chance gang street spots are populated |
+| `gang_cluster_size` | 5 | Gang members at each street cluster (the game places 3) |
 | `gang_notoriety_multiplier` | 1.0 | Gang notoriety earned per action |
 | `ambient_gang_cap` | 0 | Experimental: cap on ambient gang members per category (0 = the game's) |
 | `debug` | true | Logs party changes to `mods\wml.log` |
