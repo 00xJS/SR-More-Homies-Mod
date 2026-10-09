@@ -52,7 +52,10 @@ local FADE_BASE, FADE_BYTES = 0x840B5EB0, 36
 
 local start      = math.floor(wml.setting("homies_start", 10))
 local per_award  = math.floor(wml.setting("homies_per_award", 1))
-local cap        = math.max(1, math.min(10, math.floor(wml.setting("homies_cap", 10))))
+local cap        = math.max(1, math.min(30, math.floor(wml.setting("homies_cap", 10))))
+local LIST_MAX   = 10                       -- slots in the game's party list
+local list_cap   = math.min(cap, LIST_MAX)  -- what the list may hold
+local extra_cap  = cap - list_cap           -- entourage: followers without a list slot
 local mission    = math.floor(wml.setting("mission_homies", 10))
 local hud_heads  = math.max(3, math.min(6, math.floor(wml.setting("hud_heads", 6))))
 local range_mult = wml.setting("follower_range_multiplier", 1.0)
@@ -81,6 +84,8 @@ end
 -- ------------------------------------------------------------ party maximum
 
 local hud_pass = false   -- true while the HUD's second pass runs
+local asking_for_scan = false  -- true while the recruit hook asks for the full cap
+local RECRUIT_SCAN_LO, RECRUIT_SCAN_HI = 0x82483DB8, 0x82484548  -- the D-pad recruit routine
 local last_vanilla, last_given, last_mission = nil, nil, nil
 
 local function wanted(p, vanilla)
@@ -95,7 +100,12 @@ wml.hook(PARTY_MAX, function(ctx)
   local vanilla = to_int(ctx:r(3))
   if vanilla <= 0 or not in_single_player(p) then return end  -- recruiting off, not unlocked, or not the single-player rule
   local want, in_mission = wanted(p, vanilla)
-  want = math.max(1, math.min(cap, math.floor(want)))
+  -- The street recruit scan may see the whole cap (it recruits max - count
+  -- people, and the recruit hook below places the extras); everything that
+  -- writes the list sees at most its 10 slots.
+  local lr = ctx:lr()
+  local limit = (asking_for_scan or (lr >= RECRUIT_SCAN_LO and lr < RECRUIT_SCAN_HI)) and cap or list_cap
+  want = math.max(1, math.min(limit, math.floor(want)))
   ctx:set_r(3, want)
   if debug and (vanilla ~= last_vanilla or want ~= last_given or in_mission ~= last_mission) then
     last_vanilla, last_given, last_mission = vanilla, want, in_mission
@@ -105,27 +115,97 @@ wml.hook(PARTY_MAX, function(ctx)
 end)
 
 -- ------------------------------------------------------------ street recruit
+--
+-- Up to the list's 10 slots, recruits past 3 are added the way the game
+-- adds them (eligibility, insert, HUD head). Past 10, the entourage: the
+-- game's own add routine is run against a temporarily emptied slot 0 that
+-- is put back right after, so the follower is set up (leader handle at
+-- npc+4128, follower flags, health, weapon, follow-and-fight behaviour)
+-- without a list entry. The mod remembers them by handle, releases them on
+-- dismiss-all with the game's own dismiss routine (0x82483A60), and
+-- forgets the ones that die or despawn. They are not on the HUD, do not
+-- take car seats and are not revived.
 
+local OBJECTS     = 0x830866C8  -- handle table, 16 bytes per entry
+local DISMISS_ALL = 0x82483B78  -- (player) dismisses the whole list
+local DISMISS_ONE = 0x82483A60  -- (player, npc) undoes the follower setup
+local entourage = {}            -- handles of followers without a list slot
 local recruits, refusals = 0, 0
+
+local function object_of(handle)
+  if handle == 0 then return nil end
+  local index = handle & 0xFFFF
+  if index >= 4096 then return nil end
+  local object = wml.read_u32(OBJECTS + 12 + index * 16)
+  if object == 0 or wml.read_u32(object + 68) ~= handle or wml.read_u32(object + 72) ~= 1 then return nil end
+  return object
+end
+
+local function prune_entourage(p)
+  local kept = {}
+  for _, h in ipairs(entourage) do
+    local o = object_of(h)
+    if o and wml.read_u32(o + 4128) == wml.read_u32(p + 68) and wml.read_f32(o + 1912) > 0 then kept[#kept + 1] = h end
+  end
+  entourage = kept
+end
+
+local function ghost_add(ctx, p, npc)
+  local saved = {}
+  for i = 0, ENTRY - 4, 4 do saved[#saved + 1] = wml.read_u32(p + LIST + i) end
+  local count = wml.read_u32(p + COUNT)
+  wml.write_u32(p + COUNT, 0)
+  local ok = (call(ctx, PARTY_ADD, p, npc, 1) & 0xFF) ~= 0
+  wml.write_u32(p + COUNT, count)
+  for i = 0, ENTRY - 4, 4 do wml.write_u32(p + LIST + i, saved[i // 4 + 1]) end
+  return ok
+end
+
 wml.hook(RECRUIT_ONE, function(ctx)
   local p, npc = ctx:r(3), ctx:r(4)
   if not in_single_player(p) or npc == 0 then ctx:call_original() return end
   local count = to_int(wml.read_u32(p + COUNT))
   if count < 3 then ctx:call_original() return end            -- the game handles this itself
-  local max = to_int(call(ctx, PARTY_MAX, p))                 -- through the hook above
-  if count >= max then
+  asking_for_scan = true
+  local max = to_int(call(ctx, PARTY_MAX, p))                 -- the full cap, through the hook above
+  asking_for_scan = false
+  local in_list = count < math.min(max, list_cap)
+  if not in_list then prune_entourage(p) end
+  if not in_list and count + #entourage >= max then
     refusals = refusals + 1
     ctx:call_original()                                       -- full: let the game refuse as usual
     return
   end
   if (call(ctx, CAN_RECRUIT, p, npc) & 0xFF) == 0 then ctx:set_r(3, 0) return end
-  local added = (call(ctx, PARTY_ADD, p, npc, 1) & 0xFF) ~= 0
+  if wml.read_u32(npc + 4128) ~= 0 then ctx:set_r(3, 0) return end  -- already following someone
+  local added
+  if in_list then
+    added = (call(ctx, PARTY_ADD, p, npc, 1) & 0xFF) ~= 0
+    if added and to_int(call(ctx, HUD_SLOT, npc)) ~= -1 then call(ctx, HUD_ADD, npc) end
+  else
+    added = ghost_add(ctx, p, npc)
+    if added then entourage[#entourage + 1] = wml.read_u32(npc + 68) end
+  end
   if added then
     recruits = recruits + 1
-    if to_int(call(ctx, HUD_SLOT, npc)) ~= -1 then call(ctx, HUD_ADD, npc) end
-    if debug then wml.log(string.format("recruit: follower %d of %d added past the game's 3", count + 1, max)) end
+    if debug then wml.log(string.format("recruit: follower %d of %d added%s", count + #entourage + (in_list and 1 or 0), max,
+      in_list and " past the game's 3" or " to the entourage")) end
   end
   ctx:set_r(3, added and 1 or 0)
+end)
+
+-- Hold-to-dismiss clears the list; release the entourage the same way.
+wml.hook(DISMISS_ALL, function(ctx)
+  local p = ctx:r(3)
+  ctx:call_original()
+  if #entourage == 0 then return end
+  prune_entourage(p)
+  for _, h in ipairs(entourage) do
+    local o = object_of(h)
+    if o then call(ctx, DISMISS_ONE, p, o); wml.write_u32(o + 4128, 0) end
+  end
+  if debug then wml.log(string.format("dismissed %d entourage followers", #entourage)) end
+  entourage = {}
 end)
 
 -- ------------------------------------------------------------ HUD heads
@@ -243,13 +323,14 @@ wml.on_frame(function()
   local p = wml.read_u32(PLAYER)
   if p == 0 or wml.read_u32(p + 72) ~= 1 then return end
   log_ambient()
-  local count = to_int(wml.read_u32(p + COUNT))
+  prune_entourage(p)
+  local count = to_int(wml.read_u32(p + COUNT)) + #entourage
   if debug and count ~= last_count then
     last_count = count
-    wml.log(string.format("party: %d followers (recruitable %d, mission flag %s, extra recruits %d, refusals %d)", count,
-      wml.read_u8(RECRUITABLE), ((wml.read_u8(p + MISSION_FLAG) & 0x80) ~= 0) and "on" or "off", recruits, refusals))
+    wml.log(string.format("party: %d followers (%d in the list, %d entourage; recruitable %d, mission flag %s, extra recruits %d, refusals %d)",
+      count, count - #entourage, #entourage, wml.read_u8(RECRUITABLE), ((wml.read_u8(p + MISSION_FLAG) & 0x80) ~= 0) and "on" or "off", recruits, refusals))
   end
 end)
 
-wml.log(string.format("Party size %d at the first award, +%d per award, cap %d, missions %d, HUD heads %d (debug=%s)",
-  start, per_award, cap, mission, hud_heads, tostring(debug)))
+wml.log(string.format("Party size %d at the first award, +%d per award, cap %d (%d in the list, %d entourage), missions %d, HUD heads %d (debug=%s)",
+  start, per_award, cap, list_cap, extra_cap, mission, hud_heads, tostring(debug)))

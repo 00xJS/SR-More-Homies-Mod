@@ -1,7 +1,7 @@
 # More Homies
 
 A mod for [Saints Reborn](https://github.com/whompay/SaintsReborn) (Saints
-Row, Xbox 360, recompiled for PC) that lets you recruit up to **10 homies**
+Row, Xbox 360, recompiled for PC) that lets you recruit up to **30 homies**
 instead of 1 to 3.
 
 - The game's own progression is kept: `homies_start` as soon as recruiting
@@ -12,8 +12,9 @@ instead of 1 to 3.
 - Gang wars bring more gang members and cars, sooner, and the gang hang-out
   spots on the street are always populated.
 
-The game's party list holds 10 followers, which is the hard limit. Private
-play only, like any gameplay mod (story co-op and private parties work;
+The game's party list holds 10 followers. Past that, the extra homies are an
+"entourage": they follow you and fight for you, but they are not on the HUD,
+do not take seats in your car and cannot be revived. Private play only, like any gameplay mod (story co-op and private parties work;
 public matches do not).
 
 ## Install
@@ -31,7 +32,7 @@ after changing them.
 |---|---|---|
 | `homies_start` | 10 | Party size as soon as recruiting unlocks (the game gives 1) |
 | `homies_per_award` | 1 | Added at each city-ownership award |
-| `homies_cap` | 10 | Most the party may hold (10 is the game's limit) |
+| `homies_cap` | 10 | Most the party may hold, up to 30 (10 in the game's list, the rest an entourage, experimental) |
 | `mission_homies` | 10 | Party size when a mission gives you a full party |
 | `hud_heads` | 6 | Follower heads drawn on the HUD, 3 to 6 |
 | `second_award_at`, `third_award_at` | 0.25, 0.5 | Share of hoods owned for each award |
