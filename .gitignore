@@ -1,0 +1,9 @@
+.DS_Store
+image.bin
+*.vpp_xbox2
+*.xex
+# local only: not part of the More Homies release
+SaintsTweaks/
+tools/
+RESEARCH.md
+TESTING.md
