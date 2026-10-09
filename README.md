@@ -40,7 +40,7 @@ after changing them.
 | `gang_street_chance` | 1.0 | Chance gang street spots are populated |
 | `gang_cluster_size` | 5 | Gang members at each street cluster (the game places 3) |
 | `gang_notoriety_multiplier` | 1.0 | Gang notoriety earned per action |
-| `ambient_gang_cap` | 0 | Experimental: cap on ambient gang members per category (0 = the game's) |
+| `gang_spawn_interval` | 10 | Seconds between ambient gang spawn ticks (the game uses 20) |
 | `debug` | true | Logs party changes to `mods\wml.log` |
 
 ## How it works
