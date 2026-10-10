@@ -12,6 +12,8 @@ instead of 1 to 3, with an experimental option for up to 30.
 - Gang wars bring more gang members and cars, sooner, and the gang hang-out
   spots on the street are always populated.
 
+![Ten homies following the player outside the church, with all ten follower heads on the HUD](docs/ten-homies.webp)
+
 The game's party list holds 10 followers, and those ten behave exactly like
 the game's own. Setting `homies_cap` above 10 adds an experimental
 "entourage": extra homies that follow and fight most of the time, but show
@@ -22,9 +24,15 @@ public matches do not).
 
 ## Install
 
-1. Copy the `MoreHomies` folder to `dist\mods\` in your Saints Reborn
+1. Download this repository (Code > Download ZIP) and unzip it.
+2. Copy the `MoreHomies` folder to `dist\mods\` in your Saints Reborn
    folder (`~/SaintsReborn/dist/mods/` on the Mac build).
-2. Run Whompay's Mod Loader, tick **More Homies**, press **Play**.
+3. Run Whompay's Mod Loader, tick **More Homies**, press **Play**.
+
+Tested with Saints Reborn V1.2.2 on Windows and Mac. Works alongside
+[Saints Tweaks](https://github.com/00xJS/saints-reborn-tweaks). Not made by
+or connected to the Saints Reborn project, Volition or Deep Silver; contains
+no game files.
 
 ## Settings
 
@@ -45,7 +53,7 @@ after changing them.
 | `gang_cluster_size` | 5 | Gang members at each street cluster (the game places 3) |
 | `gang_notoriety_multiplier` | 1.0 | Gang notoriety earned per action |
 | `gang_spawn_interval` | 10 | Seconds between ambient gang spawn ticks (the game uses 20) |
-| `debug` | true | Logs party changes to `mods\wml.log` |
+| `debug` | false | Logs party changes (and an ambient-gang line every 5 s) to `mods\wml.log` |
 
 ## How it works
 
