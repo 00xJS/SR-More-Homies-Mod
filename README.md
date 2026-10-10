@@ -29,10 +29,9 @@ public matches do not).
    folder (`~/SaintsReborn/dist/mods/` on the Mac build).
 3. Run Whompay's Mod Loader, tick **More Homies**, press **Play**.
 
-Tested with Saints Reborn V1.2.2 on Windows and Mac. Works alongside
-[Saints Tweaks](https://github.com/00xJS/saints-reborn-tweaks). Not made by
-or connected to the Saints Reborn project, Volition or Deep Silver; contains
-no game files.
+Tested with Saints Reborn V1.2.2 on Windows and Mac. Not made by or
+connected to the Saints Reborn project, Volition or Deep Silver; contains no
+game files.
 
 ## Settings
 
